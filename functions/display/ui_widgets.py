@@ -671,36 +671,31 @@ class InteractionMatrix:
             channel_names (list, optional): Noms des canaux à afficher (par défaut ["Rouge", "Vert", "Bleu"])
         """
         self.rect = pygame.Rect(x, y, width, height)
-        self.matrix = matrix.copy()  # Copie pour ne pas modifier l'original directement
+        self.matrix = matrix.copy()
         self.title = title
         self.font = pygame.font.SysFont('Arial', 12)  # Réduit de 14 à 12
         self.title_font = pygame.font.SysFont('Arial', 18, bold=True)  # Réduit de 20 à 18
         
-        # Couleurs par défaut pour les canaux (R, G, B)
         self.channels_colors = channels_colors or [
             (255, 50, 50),    # Rouge
             (50, 255, 50),    # Vert
             (50, 50, 255)     # Bleu
         ]
         
-        # Noms des canaux
         self.channel_names = channel_names or ["Rouge", "Vert", "Bleu"]
         
-        # Réserver de l'espace pour les en-têtes - optimisé pour économiser de l'espace
+        # Optimisation des espacements
         header_space = 50  # Réduit de 60 à 50
         side_header_space = 80  # Réduit de 100 à 80
         
-        # Calcul des dimensions des cellules - optimisé pour une largeur plus grande
         available_width = width - side_header_space
         available_height = height - header_space - 30  # Réduit de 40 à 30 pixels pour le titre
         
-        # Ajuster la taille des cellules pour s'adapter à l'espace disponible
         self.cell_size = min(available_width // 3, available_height // 3)
-        self.cell_size = max(self.cell_size, 90)  # Réduit de 110 à 90 pour une meilleure adaptation
+        self.cell_size = max(self.cell_size, 90)  # Réduit de 110 à 90
         
-        # Calcul des positions de la matrice
         self.matrix_x = self.rect.x + side_header_space
-        self.matrix_y = self.rect.y + header_space + 30  # 30 pixels pour le titre
+        self.matrix_y = self.rect.y + header_space + 30
         
         # Création des sliders pour chaque cellule de la matrice
         self.sliders = []

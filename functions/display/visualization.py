@@ -36,23 +36,20 @@ def produce_movie_multi(Xs, evolve, interpolation=DEFAULT_INTERPOLATION):
     pygame.init()
     
     # Dimensions optimisées pour une résolution d'écran de 1800x1169
-    menu_width = 250         # Largeur pour le menu
-    sim_width = 750          # Largeur pour la simulation (réduite pour donner plus d'espace à la matrice)
-    matrix_width = 450       # Largeur pour le widget de matrice d'interaction (augmentée)
+    menu_width = 250
+    sim_width = 750          # Réduit pour donner plus d'espace à la matrice
+    matrix_width = 450       # Augmenté pour une meilleure lisibilité
     
-    # Calcul de la largeur totale de la fenêtre (limitée à la résolution disponible)
+    # Calcul de la largeur totale
     total_width = min(1800, menu_width + sim_width + matrix_width)
     
-    # Ajuster les largeurs si nécessaire pour respecter la limite
     if total_width > 1800:
-        # Répartir l'espace disponible proportionnellement
         available_width = 1800
-        menu_width = int(available_width * 0.17)  # 17% pour le menu
-        matrix_width = int(available_width * 0.30)  # 30% pour la matrice (augmenté)
-        sim_width = available_width - menu_width - matrix_width  # Le reste pour la simulation
+        menu_width = int(available_width * 0.17)
+        matrix_width = int(available_width * 0.30)  # Augmenté à 30%
+        sim_width = available_width - menu_width - matrix_width
     
-    # Diviser l'espace vertical : 2/3 pour la simulation, 1/3 pour l'oscilloscope
-    total_height = 950       # Hauteur totale optimisée pour la résolution disponible
+    total_height = 950
     sim_height = int(total_height * 2/3)
     oscillo_height = total_height - sim_height
     

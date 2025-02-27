@@ -184,47 +184,37 @@ class MenuManager:
         # Titre de la section des kernels
         self.kernels_title = Label(10, 40, "Kernels actifs", self.title_font)
         
-        # Calcul de la hauteur nécessaire pour tous les kernels
+        # Calcul des hauteurs de contenu
         kernel_count = len(self.kernel_manager.get_active_indices())
-        kernel_item_height = 30  # Hauteur d'un élément de kernel
+        kernel_item_height = 30
         kernels_content_height = kernel_count * kernel_item_height
         
-        # Récupérer toutes les fonctions de croissance disponibles
         all_growth_functions = list(self.growth_manager.growth_functions.keys())
-        growth_item_height = 30  # Hauteur d'un élément de fonction
+        growth_item_height = 30
         growth_content_height = len(all_growth_functions) * growth_item_height
         
-        # Calculer la hauteur totale disponible pour les deux panneaux
-        # Hauteur totale - (espace pour titres et bouton reset) - marges
-        total_available_height = 950 - (40 + 30 + 30 + 50) - 60  # 950 = hauteur totale
-        
-        # Répartir l'espace disponible équitablement entre les deux panneaux
-        # avec un minimum de 200 pixels pour chaque panneau
+        # Calcul de l'espace disponible
+        total_available_height = 950 - (40 + 30 + 30 + 50) - 60
         min_panel_height = 200
         
-        # Si les deux panneaux peuvent avoir leur hauteur minimale
+        # Répartition équilibrée de l'espace
         if total_available_height >= 2 * min_panel_height:
-            # Répartir l'espace proportionnellement au contenu
             total_content = kernels_content_height + growth_content_height
             if total_content > 0:
                 kernel_ratio = kernels_content_height / total_content
                 growth_ratio = growth_content_height / total_content
                 
-                # Calculer les hauteurs en fonction des ratios
                 kernel_panel_height = max(min_panel_height, int(total_available_height * kernel_ratio))
                 growth_panel_height = max(min_panel_height, int(total_available_height * growth_ratio))
                 
-                # Ajuster si la somme dépasse l'espace disponible
                 if kernel_panel_height + growth_panel_height > total_available_height:
                     excess = (kernel_panel_height + growth_panel_height) - total_available_height
                     kernel_panel_height -= int(excess * kernel_ratio)
                     growth_panel_height -= int(excess * growth_ratio)
             else:
-                # Si pas de contenu, répartir équitablement
                 kernel_panel_height = total_available_height // 2
                 growth_panel_height = total_available_height // 2
         else:
-            # Si l'espace est trop limité, donner le minimum à chaque panneau
             kernel_panel_height = min(min_panel_height, total_available_height // 2)
             growth_panel_height = min(min_panel_height, total_available_height // 2)
         
