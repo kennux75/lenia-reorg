@@ -2,35 +2,24 @@
 # -*- coding: utf-8 -*-
 
 """
-Lenia Simulation - Main Entry Point
------------------------------------
-Ce fichier est le point d'entrée principal de la simulation Lenia.
-Il importe les différents modules et lance la simulation.
+Programme principal de la simulation Lenia
+-----------------------------------------
+Ce script lance la simulation Lenia avec un menu latéral pour contrôler les fonctions de croissance.
 """
 
 import numpy as np
-import pygame
-
-# Import des configurations
-from config.display_config import DPI, width, height
-from config.simulation_config import N, M, dt
-
-# Import des fonctions
-from functions.growth.growth_functions import gauss
-from functions.evolution.evolution import evolve_multi_channels_interactions
-from functions.display.visualization import produce_movie_multi
-
-# Import des données
 from data.creatures import init_grid
+from functions.display.visualization import produce_movie_multi
+from functions.evolution.evolution import evolve_multi_channels_interactions
 
 def main():
     """
-    Fonction principale qui initialise et lance la simulation Lenia.
+    Fonction principale qui lance la simulation.
     """
-    # Initialisation de la grille
+    # Initialisation des grilles pour chaque canal (rouge, vert, bleu)
     Xs = init_grid()
     
-    # Lancement de la simulation
+    # Lancement de la simulation avec interactions entre canaux
     produce_movie_multi(Xs, evolve_multi_channels_interactions)
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ Ce fichier contient les paramètres de configuration pour la simulation Lenia.
 import numpy as np
 
 # Dimensions de la grille
-N = 384  # Hauteur de la grille
+N = 292  # Hauteur de la grille
 M = int(np.ceil((16*N)/9))  # Largeur de la grille (ratio 16:9)
 if M % 2 != 0:
     M += 1  # Force M à être pair pour optimiser les calculs FFT
