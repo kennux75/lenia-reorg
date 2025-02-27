@@ -16,7 +16,7 @@ import time
 from config.display_config import DPI, width, height, screen, FPS, DEFAULT_INTERPOLATION, MENU_WIDTH, WHITE, BLACK, RED, DARK_GRAY
 from data.creatures import inject_aquarium, init_grid
 from functions.display.menu_manager import MenuManager
-from functions.display.ui_widgets import Oscilloscope, InteractionMatrix
+from functions.display.ui_widgets import Oscilloscope, InteractionMatrix, Button
 from config.simulation_config import kernels, ms, ss, hs, sources, destinations, interaction_matrix
 from functions.growth import growth_functions
 
@@ -117,7 +117,24 @@ def produce_movie_multi(Xs, evolve, interpolation=DEFAULT_INTERPOLATION):
     oscilloscope = Oscilloscope(
         oscillo_x, oscillo_y, 
         oscillo_width, oscillo_height - 20,  # Laisser un peu d'espace en bas
-        "Fonctions de croissance"
+        "Fonctions de croissance",
+        history_size=50  # Conserver un historique de 50 courbes
+    )
+    
+    # Boutons pour contrôler l'historique de l'oscilloscope
+    button_font = pygame.font.SysFont('Arial', 12)
+    toggle_history_button = Button(
+        oscillo_x + 10, oscillo_y + 5, 
+        120, 20, 
+        "Activer/Désactiver historique", button_font, 
+        lambda: oscilloscope.toggle_history()
+    )
+    
+    clear_history_button = Button(
+        oscillo_x + 140, oscillo_y + 5, 
+        100, 20, 
+        "Effacer historique", button_font, 
+        lambda: oscilloscope.clear_history()
     )
     
     # Création de la figure matplotlib pour les statistiques si nécessaire
@@ -163,12 +180,18 @@ def produce_movie_multi(Xs, evolve, interpolation=DEFAULT_INTERPOLATION):
                     Xs = inject_aquarium(Xs)
                 if event.key == pygame.K_r:  # Si la touche 'r' est pressée
                     Xs = init_grid()
+                    # Effacer l'historique lors de la réinitialisation
+                    oscilloscope.clear_history()
         
         # Mise à jour du menu
         menu_manager.update(event_list)
         
         # Mise à jour du widget de matrice d'interaction
         interaction_widget.update(event_list)
+        
+        # Mise à jour des boutons de contrôle de l'historique
+        toggle_history_button.update(event_list)
+        clear_history_button.update(event_list)
         
         # Récupération des indices de kernels actifs
         active_indices = menu_manager.get_active_kernel_indices()
@@ -271,8 +294,12 @@ def produce_movie_multi(Xs, evolve, interpolation=DEFAULT_INTERPOLATION):
                     label = f"{name} (m={growth_params[name]['m']:.2f}, s={growth_params[name]['s']:.3f})"
                     active_growth_labels.append(label)
             
-            # Dessiner l'oscilloscope
+            # Dessiner l'oscilloscope avec l'historique
             oscilloscope.draw(screen, active_growth_functions, active_growth_labels, x_range)
+            
+            # Dessiner les boutons de contrôle de l'historique
+            toggle_history_button.draw(screen)
+            clear_history_button.draw(screen)
             
             # Dessiner le menu (sur fond blanc pour contraster avec le fond gris)
             # Créer une surface pour le menu

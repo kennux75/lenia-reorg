@@ -450,9 +450,9 @@ class DropdownMenu:
         return False 
 
 class Oscilloscope:
-    """Un graphique pour afficher les courbes de croissance en temps réel."""
+    """Un graphique pour afficher les courbes de croissance en temps réel avec historique."""
     
-    def __init__(self, x, y, width, height, title="Fonctions de croissance"):
+    def __init__(self, x, y, width, height, title="Fonctions de croissance", history_size=20):
         """
         Initialise un oscilloscope.
         
@@ -462,6 +462,7 @@ class Oscilloscope:
             width (int): Largeur du graphique
             height (int): Hauteur du graphique
             title (str, optional): Titre du graphique
+            history_size (int, optional): Nombre de courbes à conserver dans l'historique
         """
         self.rect = pygame.Rect(x, y, width, height)
         self.title = title
@@ -484,6 +485,49 @@ class Oscilloscope:
         self.y_max = 1.0
         self.smoothing_factor = 0.9  # Facteur de lissage pour l'adaptation de l'échelle
         
+        # Attributs pour l'historique des courbes
+        self.history_size = history_size
+        self.curve_history = []  # Liste pour stocker l'historique des courbes
+        self.history_labels = []  # Liste pour stocker les labels correspondants
+        self.history_enabled = True  # Option pour activer/désactiver l'historique
+        self.history_opacity_step = 0.8  # Facteur de réduction d'opacité pour les courbes historiques
+    
+    def add_to_history(self, functions, labels=None, x_range=(0, 1)):
+        """
+        Ajoute les courbes actuelles à l'historique.
+        
+        Args:
+            functions (list): Liste des fonctions à ajouter à l'historique
+            labels (list, optional): Liste des noms des fonctions
+            x_range (tuple, optional): Plage de valeurs x (min, max)
+        """
+        if not self.history_enabled or not functions:
+            return
+            
+        # Calculer les points pour chaque fonction
+        curves = []
+        for func in functions:
+            points = []
+            for j in range(100):
+                x_val = x_range[0] + j * (x_range[1] - x_range[0]) / 99
+                y_val = func(x_val)
+                points.append((x_val, y_val))
+            curves.append(points)
+            
+        # Ajouter les courbes à l'historique
+        self.curve_history.append(curves)
+        
+        # Ajouter les labels à l'historique si fournis
+        if labels:
+            self.history_labels.append(labels)
+        else:
+            self.history_labels.append([f"Courbe {i+1}" for i in range(len(functions))])
+            
+        # Limiter la taille de l'historique
+        if len(self.curve_history) > self.history_size:
+            self.curve_history.pop(0)
+            self.history_labels.pop(0)
+        
     def draw(self, surface, functions, labels=None, x_range=(0, 1)):
         """
         Dessine les courbes sur la surface.
@@ -494,6 +538,9 @@ class Oscilloscope:
             labels (list, optional): Liste des noms des fonctions
             x_range (tuple, optional): Plage de valeurs x (min, max)
         """
+        # Ajouter les courbes actuelles à l'historique avant de les dessiner
+        self.add_to_history(functions, labels, x_range)
+        
         # Dessiner le fond
         pygame.draw.rect(surface, (240, 240, 240), self.rect)
         pygame.draw.rect(surface, DARK_GRAY, self.rect, 2)
@@ -513,7 +560,7 @@ class Oscilloscope:
         )
         
         # Si aucune fonction n'est fournie, sortir après avoir dessiné les axes
-        if not functions:
+        if not functions and not self.curve_history:
             # Dessiner les axes
             pygame.draw.line(
                 surface, BLACK,
@@ -533,12 +580,21 @@ class Oscilloscope:
         
         # Calculer les valeurs min et max pour l'échelle Y automatique
         all_values = []
-        for func in functions:
-            # Échantillonner la fonction sur la plage X
-            for j in range(20):  # Moins de points pour l'analyse, plus rapide
-                x_val = x_range[0] + j * (x_range[1] - x_range[0]) / 19
-                y_val = func(x_val)
-                all_values.append(y_val)
+        
+        # Inclure les valeurs des fonctions actuelles
+        if functions:
+            for func in functions:
+                # Échantillonner la fonction sur la plage X
+                for j in range(20):  # Moins de points pour l'analyse, plus rapide
+                    x_val = x_range[0] + j * (x_range[1] - x_range[0]) / 19
+                    y_val = func(x_val)
+                    all_values.append(y_val)
+        
+        # Inclure les valeurs de l'historique
+        for curves in self.curve_history:
+            for points in curves:
+                for _, y_val in points:
+                    all_values.append(y_val)
         
         # Calculer les bornes min et max actuelles
         current_min = min(all_values) if all_values else -1.0
@@ -598,28 +654,61 @@ class Oscilloscope:
             y_label = self.font.render(f"{y_val:.2f}", True, BLACK)
             surface.blit(y_label, (plot_rect.left - 45, y - 7))
         
-        # Dessiner chaque courbe
-        for i, func in enumerate(functions):
-            color = self.colors[i % len(self.colors)]
-            points = []
-            
-            # Calculer les points de la courbe
-            for j in range(100):
-                x_val = x_range[0] + j * (x_range[1] - x_range[0]) / 99
-                y_val = func(x_val)
+        # Dessiner l'historique des courbes avec une opacité décroissante
+        if self.history_enabled and self.curve_history:
+            for history_index, (curves, history_labels) in enumerate(zip(self.curve_history, self.history_labels)):
+                # Calculer l'opacité en fonction de l'âge de la courbe
+                opacity = max(0.1, self.history_opacity_step ** (len(self.curve_history) - history_index - 1))
                 
-                # Convertir en coordonnées d'écran
-                x_pix = plot_rect.left + j * plot_rect.width / 99
-                y_pix = plot_rect.bottom - (y_val - y_min_display) * plot_rect.height / (y_max_display - y_min_display)
+                for i, points in enumerate(curves):
+                    if i >= len(self.colors):
+                        continue
+                        
+                    # Obtenir la couleur de base et appliquer l'opacité
+                    base_color = self.colors[i % len(self.colors)]
+                    color = (base_color[0], base_color[1], base_color[2], int(255 * opacity))
+                    
+                    # Convertir les points en coordonnées d'écran
+                    screen_points = []
+                    for x_val, y_val in points:
+                        x_pix = plot_rect.left + (x_val - x_range[0]) * plot_rect.width / (x_range[1] - x_range[0])
+                        y_pix = plot_rect.bottom - (y_val - y_min_display) * plot_rect.height / (y_max_display - y_min_display)
+                        
+                        # S'assurer que y_pix reste dans les limites du graphique
+                        y_pix = max(plot_rect.top, min(plot_rect.bottom, y_pix))
+                        
+                        screen_points.append((x_pix, y_pix))
+                    
+                    # Tracer la courbe historique
+                    if len(screen_points) > 1:
+                        # Créer une surface temporaire pour dessiner la courbe avec transparence
+                        temp_surface = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+                        pygame.draw.lines(temp_surface, color, False, screen_points, 1)
+                        surface.blit(temp_surface, (0, 0))
+        
+        # Dessiner chaque courbe actuelle
+        if functions:
+            for i, func in enumerate(functions):
+                color = self.colors[i % len(self.colors)]
+                points = []
                 
-                # S'assurer que y_pix reste dans les limites du graphique
-                y_pix = max(plot_rect.top, min(plot_rect.bottom, y_pix))
+                # Calculer les points de la courbe
+                for j in range(100):
+                    x_val = x_range[0] + j * (x_range[1] - x_range[0]) / 99
+                    y_val = func(x_val)
+                    
+                    # Convertir en coordonnées d'écran
+                    x_pix = plot_rect.left + j * plot_rect.width / 99
+                    y_pix = plot_rect.bottom - (y_val - y_min_display) * plot_rect.height / (y_max_display - y_min_display)
+                    
+                    # S'assurer que y_pix reste dans les limites du graphique
+                    y_pix = max(plot_rect.top, min(plot_rect.bottom, y_pix))
+                    
+                    points.append((x_pix, y_pix))
                 
-                points.append((x_pix, y_pix))
-            
-            # Tracer la courbe
-            if len(points) > 1:
-                pygame.draw.lines(surface, color, False, points, 2)
+                # Tracer la courbe actuelle (plus épaisse que les courbes historiques)
+                if len(points) > 1:
+                    pygame.draw.lines(surface, color, False, points, 2)
                 
         # Dessiner la légende si des labels sont fournis
         if labels:
@@ -663,6 +752,29 @@ class Oscilloscope:
                     label_surf = self.font.render(truncated, True, BLACK)
                 
                 surface.blit(label_surf, (item_x + 25, item_y + 3))
+                
+    def toggle_history(self):
+        """Active ou désactive l'affichage de l'historique des courbes."""
+        self.history_enabled = not self.history_enabled
+        
+    def clear_history(self):
+        """Efface l'historique des courbes."""
+        self.curve_history = []
+        self.history_labels = []
+        
+    def set_history_size(self, size):
+        """
+        Définit la taille maximale de l'historique.
+        
+        Args:
+            size (int): Nombre maximal de courbes à conserver dans l'historique
+        """
+        self.history_size = max(1, size)
+        
+        # Tronquer l'historique si nécessaire
+        while len(self.curve_history) > self.history_size:
+            self.curve_history.pop(0)
+            self.history_labels.pop(0)
 
 class InteractionMatrix:
     """Widget pour afficher et modifier la matrice d'interaction entre canaux."""
