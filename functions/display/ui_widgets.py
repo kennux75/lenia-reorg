@@ -675,6 +675,7 @@ class InteractionMatrix:
         self.title = title
         self.font = pygame.font.SysFont('Arial', 12)  # Réduit de 14 à 12
         self.title_font = pygame.font.SysFont('Arial', 18, bold=True)  # Réduit de 20 à 18
+        self.button_font = pygame.font.SysFont('Arial', 12, bold=True)  # Police pour les boutons + et -
         
         self.channels_colors = channels_colors or [
             (255, 50, 50),    # Rouge
@@ -699,9 +700,15 @@ class InteractionMatrix:
         
         # Création des sliders pour chaque cellule de la matrice
         self.sliders = []
+        # Nouveaux tableaux pour les boutons + et -
+        self.plus_buttons = []
+        self.minus_buttons = []
         
         for i in range(3):  # Pour chaque ligne (destination)
             row_sliders = []
+            row_plus_buttons = []
+            row_minus_buttons = []
+            
             for j in range(3):  # Pour chaque colonne (source)
                 # Position du slider
                 slider_x = self.matrix_x + j * self.cell_size + 10
@@ -725,16 +732,46 @@ class InteractionMatrix:
                     on_change=create_callback(i, j)
                 )
                 
+                # Position des boutons + et - (en dessous du slider)
+                button_width = 20
+                button_height = 20
+                button_spacing = 10
+                
+                # Créer les fonctions de callback pour les boutons
+                def create_increment_callback(row, col, amount):
+                    def callback():
+                        self.increment_value(row, col, amount)
+                    return callback
+                
+                # Bouton -
+                minus_button = Button(
+                    slider_x, slider_y + 20,
+                    button_width, button_height,
+                    "-", self.button_font,
+                    create_increment_callback(i, j, -0.1)
+                )
+                
+                # Bouton +
+                plus_button = Button(
+                    slider_x + slider_width - button_width, slider_y + 20,
+                    button_width, button_height,
+                    "+", self.button_font,
+                    create_increment_callback(i, j, 0.1)
+                )
+                
                 row_sliders.append(slider)
+                row_plus_buttons.append(plus_button)
+                row_minus_buttons.append(minus_button)
             
             self.sliders.append(row_sliders)
+            self.plus_buttons.append(row_plus_buttons)
+            self.minus_buttons.append(row_minus_buttons)
     
     def increment_value(self, i, j, amount):
         """Incrémente la valeur à la position (i, j) de la matrice."""
         self.matrix[i, j] = max(-1.0, min(1.0, self.matrix[i, j] + amount))
         # Mettre à jour le curseur correspondant
-        slider_index = i * 3 + j
-        self.sliders[slider_index].set_value(self.matrix[i, j])
+        self.sliders[i][j].set_value(self.matrix[i, j])
         
     def set_value(self, i, j, value):
         """Définit la valeur à la position (i, j) de la matrice."""
@@ -746,9 +783,20 @@ class InteractionMatrix:
         
     def update(self, event_list):
         """Met à jour l'état des boutons et curseurs."""
+        # Mise à jour des sliders
         for row in self.sliders:
             for slider in row:
                 slider.update(event_list)
+                
+        # Mise à jour des boutons +
+        for i, row in enumerate(self.plus_buttons):
+            for j, button in enumerate(row):
+                button.update(event_list)
+                
+        # Mise à jour des boutons -
+        for i, row in enumerate(self.minus_buttons):
+            for j, button in enumerate(row):
+                button.update(event_list)
             
     def draw(self, surface):
         """Dessine la matrice d'interaction sur la surface."""
@@ -883,6 +931,16 @@ class InteractionMatrix:
         for i, row in enumerate(self.sliders):
             for j, slider in enumerate(row):
                 slider.draw(surface)
+                
+        # Dessiner les boutons +
+        for i, row in enumerate(self.plus_buttons):
+            for j, button in enumerate(row):
+                button.draw(surface)
+                
+        # Dessiner les boutons -
+        for i, row in enumerate(self.minus_buttons):
+            for j, button in enumerate(row):
+                button.draw(surface)
 
 class Slider:
     """Un curseur pour sélectionner une valeur dans une plage."""
