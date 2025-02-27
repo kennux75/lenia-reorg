@@ -174,14 +174,17 @@ class MenuManager:
         self.small_font = pygame.font.SysFont('Arial', 12)
         self.info_font = pygame.font.SysFont('Arial', 11)  # Police pour les popups d'information
         
-        # Descriptions des paramètres des kernels
+        # Descriptions détaillées des paramètres des kernels
         self.kernel_descriptions = [
-            f"Kernel {i}:\n"
+            f"Kernel {i} - Détails:\n"
             f"- Canal source: {self.sources[i]}\n"
             f"- Canal destination: {self.destinations[i]}\n"
             f"- Fonction: Convolution 2D\n"
             f"- Rôle: Définit comment le canal {self.sources[i]} influence le canal {self.destinations[i]}\n"
-            f"- Paramètres: Taille, forme et intensité du noyau"
+            f"- Moyenne (m): {self.ms[i]:.3f} - Détermine le centre de la fonction de réponse\n"
+            f"- Écart-type (s): {self.ss[i]:.3f} - Contrôle la largeur de la fonction de réponse\n"
+            f"- Hauteur (h): {self.hs[i]:.3f} - Amplitude de l'effet\n"
+            f"- Effet: {self._get_kernel_effect_description(i)}"
             for i in range(len(kernels))
         ]
         
@@ -198,7 +201,7 @@ class MenuManager:
         
         # Calcul des hauteurs de contenu
         kernel_count = len(self.kernel_manager.get_active_indices())
-        kernel_item_height = 40  # Augmenté de 30 à 40 pour plus d'espace
+        kernel_item_height = 50  # Augmenté de 40 à 50 pour plus d'espace
         kernels_content_height = kernel_count * kernel_item_height
         
         all_growth_functions = list(self.growth_manager.growth_functions.keys())
@@ -248,10 +251,17 @@ class MenuManager:
                     self.toggle_kernel(idx, state)
                 return action
             
+            # Créer un texte plus descriptif pour la checkbox
+            effect_type = "+" if self.hs[i] > 0 else "-"
+            checkbox_text = (
+                f"Kernel {i}: {self.sources[i]} → {self.destinations[i]}\n"
+                f"m={self.ms[i]:.3f}, s={self.ss[i]:.3f}, h={self.hs[i]:.2f} ({effect_type})"
+            )
+            
             # Créer la checkbox avec un texte plus descriptif
             checkbox = Checkbox(
                 20, 10 + i * kernel_item_height, 
-                20, f"Kernel {i} ({self.sources[i]} → {self.destinations[i]})", 
+                20, checkbox_text, 
                 self.small_font, True, create_action(i)
             )
             
@@ -361,7 +371,7 @@ class MenuManager:
         
         # Dessiner les checkboxes et boutons d'information des kernels
         for i, (checkbox, info_button) in enumerate(zip(self.kernel_checkboxes, self.kernel_info_buttons)):
-            y_pos = content_rect.top + i * 40 + 10  # Ajusté pour l'espacement de 40
+            y_pos = content_rect.top + i * 50 + 10  # Ajusté pour l'espacement de 50
             
             # Vérifier si l'élément est visible dans le panneau défilant
             if self.kernels_panel.is_visible(y_pos):
@@ -428,7 +438,7 @@ class MenuManager:
         # Mettre à jour les checkboxes et boutons d'information des kernels
         content_rect = self.kernels_panel.get_content_rect()
         for i, (checkbox, info_button) in enumerate(zip(self.kernel_checkboxes, self.kernel_info_buttons)):
-            y_pos = content_rect.top + i * 40 + 10  # Ajusté pour l'espacement de 40
+            y_pos = content_rect.top + i * 50 + 10  # Ajusté pour l'espacement de 50
             
             # Vérifier si l'élément est visible et ajuster sa position
             if self.kernels_panel.is_visible(y_pos):
@@ -505,4 +515,29 @@ class MenuManager:
         Returns:
             list: Liste des noms des fonctions actives
         """
-        return self.growth_manager.get_active_function_names() 
+        return self.growth_manager.get_active_function_names()
+    
+    def _get_kernel_effect_description(self, index):
+        """
+        Génère une description de l'effet du kernel basée sur ses paramètres.
+        
+        Args:
+            index (int): Indice du kernel
+            
+        Returns:
+            str: Description de l'effet du kernel
+        """
+        m, s, h = self.ms[index], self.ss[index], self.hs[index]
+        source, dest = self.sources[index], self.destinations[index]
+        
+        # Déterminer le type d'effet basé sur les paramètres
+        if h > 0:
+            if source == dest:
+                return f"Auto-activation du canal {source} (croissance)"
+            else:
+                return f"Activation du canal {dest} par le canal {source}"
+        else:
+            if source == dest:
+                return f"Auto-inhibition du canal {source} (décroissance)"
+            else:
+                return f"Inhibition du canal {dest} par le canal {source}" 

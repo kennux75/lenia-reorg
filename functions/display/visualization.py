@@ -35,18 +35,18 @@ def produce_movie_multi(Xs, evolve, interpolation=DEFAULT_INTERPOLATION):
 
     pygame.init()
     
-    # Dimensions optimisées pour une résolution d'écran de 1800x1169
-    menu_width = 300         # Augmenté de 250 à 300 pour plus d'explications
+    # Dimensions optimisées pour une résolution d'écran large
+    menu_width = 350         # Augmenté de 300 à 350 pour plus d'explications
     sim_width = 750          # Maintenu pour l'affichage de la simulation
     matrix_width = 450       # Maintenu pour la matrice d'interaction
     
     # Calcul de la largeur totale
-    total_width = min(1800, menu_width + sim_width + matrix_width)
+    total_width = min(2000, menu_width + sim_width + matrix_width)
     
-    if total_width > 1800:
-        available_width = 1800
-        menu_width = int(available_width * 0.20)  # Augmenté de 0.17 à 0.20
-        matrix_width = int(available_width * 0.30)  # Maintenu à 30%
+    if total_width > 2000:
+        available_width = 2000
+        menu_width = int(available_width * 0.22)  # Augmenté de 0.20 à 0.22
+        matrix_width = int(available_width * 0.28)  # Réduit légèrement de 0.30 à 0.28
         sim_width = available_width - menu_width - matrix_width
     
     total_height = 950

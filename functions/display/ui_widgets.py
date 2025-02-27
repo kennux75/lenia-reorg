@@ -143,7 +143,7 @@ class Checkbox:
             x (int): Position X de la case
             y (int): Position Y de la case
             size (int): Taille de la case
-            text (str): Texte à afficher à côté de la case
+            text (str): Texte à afficher à côté de la case (peut contenir des sauts de ligne \n)
             font (pygame.font.Font): Police à utiliser pour le texte
             checked (bool, optional): État initial (cochée ou non)
             action (function, optional): Fonction à appeler lorsque l'état change
@@ -174,12 +174,23 @@ class Checkbox:
             )
             pygame.draw.rect(surface, GREEN, inner_rect)
         
-        # Dessiner le texte
-        text_surf = self.font.render(self.text, True, BLACK)
-        text_rect = text_surf.get_rect(
-            midleft=(self.rect.right + 10, self.rect.centery)
-        )
-        surface.blit(text_surf, text_rect)
+        # Dessiner le texte (support multi-lignes)
+        lines = self.text.split('\n')
+        line_height = self.font.get_height()
+        
+        # Calculer la hauteur totale du texte
+        total_height = line_height * len(lines)
+        
+        # Position Y de départ pour centrer verticalement le bloc de texte par rapport à la case
+        start_y = self.rect.centery - (total_height / 2)
+        
+        # Dessiner chaque ligne
+        for i, line in enumerate(lines):
+            text_surf = self.font.render(line, True, BLACK)
+            text_rect = text_surf.get_rect(
+                midleft=(self.rect.right + 10, start_y + i * line_height + line_height / 2)
+            )
+            surface.blit(text_surf, text_rect)
         
     def update(self, event_list):
         """Met à jour l'état de la case à cocher en fonction des événements."""

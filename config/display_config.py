@@ -11,9 +11,9 @@ import pygame
 
 # Paramètres d'affichage
 DPI = 100  # DPI de la fenêtre (dots per inch)
-MENU_WIDTH = 300  # Largeur du menu latéral en pixels (augmenté de 250 à 300)
-MAX_WINDOW_WIDTH = 1800  # Largeur maximale de la fenêtre (ajustée à la résolution disponible)
-width, height = min(1500, MAX_WINDOW_WIDTH), 950  # Résolution en pixels de la fenêtre avec menu (augmenté de 1450 à 1500)
+MENU_WIDTH = 350  # Largeur du menu latéral en pixels (augmenté de 300 à 350)
+MAX_WINDOW_WIDTH = 2000  # Largeur maximale de la fenêtre (augmentée de 1800 à 2000)
+width, height = min(1600, MAX_WINDOW_WIDTH), 950  # Résolution en pixels de la fenêtre avec menu (augmenté de 1500 à 1600)
 width = min(width, MAX_WINDOW_WIDTH - MENU_WIDTH)  # Ajuster la largeur dans les limites
 
 # Calculer la taille de la figure en pouces pour matplotlib
