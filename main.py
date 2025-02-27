@@ -7,6 +7,12 @@ Programme principal de la simulation Lenia
 Ce script lance la simulation Lenia avec un menu latéral permettant de contrôler:
 - Les kernels actifs avec un menu popup pour voir leurs détails
 - Les fonctions de croissance à utiliser
+
+L'interface comprend:
+- Un menu latéral à gauche pour les contrôles
+- La simulation Lenia animée au centre
+- Une matrice d'interaction à droite permettant de modifier les interactions entre canaux
+- Un oscilloscope en bas qui affiche en temps réel les courbes des fonctions de croissance sélectionnées
 """
 
 import numpy as np

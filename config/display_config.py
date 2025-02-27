@@ -11,9 +11,9 @@ import pygame
 
 # Paramètres d'affichage
 DPI = 100  # DPI de la fenêtre (dots per inch)
-MENU_WIDTH = 350  # Largeur du menu latéral en pixels
-MAX_WINDOW_WIDTH = 1920  # Largeur maximale de la fenêtre
-width, height = min(1600, MAX_WINDOW_WIDTH), 900  # Résolution en pixels de la fenêtre avec menu
+MENU_WIDTH = 250  # Largeur du menu latéral en pixels
+MAX_WINDOW_WIDTH = 1800  # Largeur maximale de la fenêtre (ajustée à la résolution disponible)
+width, height = min(1450, MAX_WINDOW_WIDTH), 950  # Résolution en pixels de la fenêtre avec menu
 width = min(width, MAX_WINDOW_WIDTH - MENU_WIDTH)  # Ajuster la largeur dans les limites
 
 # Calculer la taille de la figure en pouces pour matplotlib
@@ -22,7 +22,7 @@ figsize = (width / DPI, height / DPI)
 # Initialisation de pygame
 pygame.init()
 screen = pygame.display.set_mode((width + MENU_WIDTH, height))
-pygame.display.set_caption("Lenia Simulation")
+pygame.display.set_caption("Lenia Simulation - Interactions multi-canaux")
 
 # Couleurs pour l'interface
 BLACK = (0, 0, 0)
