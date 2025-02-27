@@ -14,19 +14,40 @@ Le projet est organisé en plusieurs répertoires:
 lenia-reorg/
 ├── config/                 # Configuration de la simulation
 │   ├── display_config.py   # Paramètres d'affichage
-│   └── simulation_config.py # Paramètres de simulation
+│   ├── simulation_config.py # Paramètres de simulation
+│   └── README.md           # Documentation des paramètres de configuration
 ├── functions/              # Fonctions de la simulation
 │   ├── growth/             # Fonctions de croissance
-│   │   └── growth_functions.py
+│   │   ├── growth_functions.py
+│   │   └── README.md       # Documentation des fonctions de croissance
+│   ├── kernel/             # Fonctions de génération de kernels
+│   │   ├── kernel_generation.py
+│   │   └── README.md       # Documentation des kernels
 │   ├── evolution/          # Fonctions d'évolution
 │   │   ├── evolution.py
-│   │   └── kernel_generator.py
+│   │   ├── kernel_generator.py
+│   │   └── README.md       # Documentation des fonctions d'évolution
 │   └── display/            # Fonctions d'affichage
-│       └── visualization.py
+│       ├── visualization.py
+│       ├── ui_widgets.py
+│       ├── menu_manager.py
+│       └── README.md       # Documentation des fonctions d'affichage
 ├── data/                   # Définitions des créatures
-│   └── creatures.py
+│   ├── creatures.py
+│   └── README.md           # Documentation des créatures disponibles
 └── main.py                 # Point d'entrée principal
 ```
+
+## Documentation
+
+Chaque répertoire principal contient un fichier README.md qui explique en détail les fonctionnalités et paramètres disponibles:
+
+- [Configuration](config/README.md) - Paramètres de configuration de la simulation et de l'affichage
+- [Fonctions de croissance](functions/growth/README.md) - Fonctions qui déterminent l'évolution des cellules
+- [Kernels](functions/kernel/README.md) - Génération des kernels pour les convolutions
+- [Évolution](functions/evolution/README.md) - Fonctions d'évolution temporelle de la simulation
+- [Affichage](functions/display/README.md) - Interface utilisateur et visualisation
+- [Données et créatures](data/README.md) - Créatures prédéfinies et leur utilisation
 
 ## Installation
 
@@ -57,12 +78,15 @@ python main.py
 - **Espace**: Pause/Reprise de la simulation
 - **A**: Ajouter un "aquarium" à une position aléatoire
 - **R**: Réinitialiser la grille
+- **S**: Sauvegarder l'état actuel
+- **L**: Charger un état sauvegardé
+- **M**: Générer une vidéo de la simulation
 
 ## Personnalisation
 
 ### Ajouter de nouvelles créatures
 
-Pour ajouter de nouvelles créatures, modifiez le fichier `data/creatures.py` en définissant de nouveaux patterns pour les trois canaux (RGB).
+Pour ajouter de nouvelles créatures, modifiez le fichier `data/creatures.py` en définissant de nouveaux patterns pour les trois canaux (RGB). Consultez [la documentation des créatures](data/README.md) pour plus de détails.
 
 ### Modifier les paramètres de simulation
 
@@ -73,13 +97,19 @@ Les paramètres de simulation peuvent être modifiés dans `config/simulation_co
 - Matrice d'interaction entre canaux
 - Pas de temps
 
+Consultez [la documentation de configuration](config/README.md) pour une description détaillée de tous les paramètres.
+
 ### Ajouter de nouvelles fonctions de croissance
 
-Pour ajouter de nouvelles fonctions de croissance, modifiez le fichier `functions/growth/growth_functions.py`.
+Pour ajouter de nouvelles fonctions de croissance, modifiez le fichier `functions/growth/growth_functions.py`. Consultez [la documentation des fonctions de croissance](functions/growth/README.md) pour comprendre les fonctions existantes.
 
 ## Fonctionnement
 
 Lenia fonctionne en appliquant des convolutions (via FFT) avec des kernels spécifiques sur une grille 2D, puis en appliquant une fonction de croissance sur le résultat. Cette implémentation utilise plusieurs canaux qui peuvent interagir entre eux, créant des comportements complexes.
+
+Pour une compréhension approfondie:
+- Consultez [la documentation des kernels](functions/kernel/README.md) pour comprendre la génération des kernels
+- Consultez [la documentation d'évolution](functions/evolution/README.md) pour comprendre le processus d'évolution
 
 ## Licence
 
