@@ -143,7 +143,7 @@ class MenuManager:
     Gère l'affichage et les interactions avec le menu.
     """
     
-    def __init__(self, kernels, ms, ss, hs, sources, destinations, menu_width=None):
+    def __init__(self, kernels, ms, ss, hs, sources, destinations, menu_width=None, offset_x=0, offset_y=0):
         """
         Initialise le gestionnaire de menu.
         
@@ -155,6 +155,8 @@ class MenuManager:
             sources (list): Liste des canaux sources
             destinations (list): Liste des canaux destinations
             menu_width (int, optional): Largeur du menu en pixels. Si None, utilise MENU_WIDTH de config.
+            offset_x (int, optional): Décalage horizontal du menu. Par défaut 0.
+            offset_y (int, optional): Décalage vertical du menu. Par défaut 0.
         """
         self.kernel_manager = KernelManager(kernels)
         self.growth_manager = GrowthFunctionManager()
@@ -167,6 +169,10 @@ class MenuManager:
         # Utiliser la largeur spécifiée ou la valeur par défaut
         from config.display_config import MENU_WIDTH
         self.menu_width = menu_width if menu_width is not None else MENU_WIDTH
+        
+        # Décalages pour le positionnement
+        self.offset_x = offset_x
+        self.offset_y = offset_y
         
         # Initialisation des polices
         self.title_font = pygame.font.SysFont('Arial', 18, bold=True)
@@ -194,13 +200,13 @@ class MenuManager:
     def _create_ui_elements(self):
         """Crée les éléments d'interface du menu."""
         # Titre du menu
-        self.title = Label(10, 10, "Menu Lenia", self.title_font)
+        self.title = Label(self.offset_x + 10, self.offset_y + 10, "Menu Lenia", self.title_font)
         
         # Titre de la section des kernels
-        self.kernels_title = Label(10, 40, "Kernels actifs", self.title_font)
+        self.kernels_title = Label(self.offset_x + 10, self.offset_y + 40, "Kernels actifs", self.title_font)
         
         # Calcul des hauteurs de contenu
-        kernel_count = len(self.kernel_manager.get_active_indices())
+        kernel_count = len(self.kernel_manager.kernel_list)
         kernel_item_height = 50  # Augmenté de 40 à 50 pour plus d'espace
         kernels_content_height = kernel_count * kernel_item_height
         
@@ -209,7 +215,7 @@ class MenuManager:
         growth_content_height = len(all_growth_functions) * growth_item_height
         
         # Calcul de l'espace disponible
-        total_available_height = 950 - (40 + 30 + 30 + 50) - 60
+        total_available_height = 600 - (40 + 30 + 30 + 50) - 60
         min_panel_height = 200
         
         # Répartition équilibrée de l'espace
@@ -235,7 +241,7 @@ class MenuManager:
         
         # Panneau défilant pour les kernels
         self.kernels_panel = ScrollablePanel(
-            10, 70, 
+            self.offset_x + 10, self.offset_y + 70, 
             self.menu_width - 20, kernel_panel_height, 
             kernels_content_height
         )
@@ -248,70 +254,86 @@ class MenuManager:
             # Créer une fonction d'action pour ce kernel
             def create_action(idx):
                 def action(state):
-                    self.toggle_kernel(idx, state)
+                    self.kernel_manager.toggle_kernel(idx, state)
                 return action
             
-            # Créer un texte plus descriptif pour la checkbox
-            effect_type = "+" if self.hs[i] > 0 else "-"
-            checkbox_text = (
-                f"Kernel {i}: {self.sources[i]} → {self.destinations[i]}\n"
-                f"m={self.ms[i]:.3f}, s={self.ss[i]:.3f}, h={self.hs[i]:.2f} ({effect_type})"
-            )
-            
-            # Créer la checkbox avec un texte plus descriptif
+            # Créer une checkbox à la position relative par rapport au panneau
             checkbox = Checkbox(
-                20, 10 + i * kernel_item_height, 
-                20, checkbox_text, 
-                self.small_font, True, create_action(i)
+                10, i * kernel_item_height + 5, 
+                f"Kernel {i} - {self.sources[i]} → {self.destinations[i]}", 
+                self.font, create_action(i),
+                True  # Tous les kernels sont actifs par défaut
             )
             
-            # Créer le bouton d'information
+            # Créer un bouton d'information à la position relative par rapport au panneau
             info_button = InfoButton(
-                self.menu_width - 50, 10 + i * kernel_item_height, 
-                20, self.small_font, 
-                self.kernel_descriptions[i], self.info_font
+                self.kernels_panel.width - 30, i * kernel_item_height + 5, 
+                "i", self.font, self.kernel_descriptions[i]
             )
             
             self.kernel_checkboxes.append(checkbox)
             self.kernel_info_buttons.append(info_button)
+            
+            # Ajouter les éléments au panneau des kernels
+            self.kernels_panel.add_element(checkbox)
+            self.kernels_panel.add_element(info_button)
+            
+            # Définir explicitement les positions originales pour aider le défilement
+            checkbox._original_pos = (10, i * kernel_item_height + 5)
+            info_button._original_pos = (self.kernels_panel.width - 30, i * kernel_item_height + 5)
         
         # Titre de la section des fonctions de croissance
-        self.growth_title = Label(10, self.kernels_panel.rect.bottom + 20, "Fonctions de croissance", self.title_font)
+        self.growth_func_title = Label(
+            self.offset_x + 10, 
+            self.offset_y + 70 + kernel_panel_height + 20, 
+            "Fonctions de croissance", 
+            self.title_font
+        )
         
         # Panneau défilant pour les fonctions de croissance
         self.growth_panel = ScrollablePanel(
-            10, self.growth_title.pos[1] + 30, 
+            self.offset_x + 10, 
+            self.offset_y + 70 + kernel_panel_height + 50, 
             self.menu_width - 20, growth_panel_height, 
             growth_content_height
         )
         
         # Checkboxes pour chaque fonction de croissance
-        self.growth_checkboxes = []
+        self.growth_func_checkboxes = []
         
-        for i, name in enumerate(all_growth_functions):
+        for i, func_name in enumerate(all_growth_functions):
             # Créer une fonction d'action pour cette fonction de croissance
             def create_action(name):
                 def action(state):
-                    self.toggle_growth_function(name, state)
+                    self.growth_manager.toggle_function(name, state)
                 return action
             
-            # Vérifier si la fonction est active
-            is_active = self.growth_manager.active_functions.get(name, False)
+            # Par défaut, seule la fonction gaussienne est active
+            is_checked = func_name == "gauss"
             
-            # Créer la checkbox
+            # Créer la checkbox à la position relative par rapport au panneau
             checkbox = Checkbox(
-                20, 10 + i * growth_item_height, 
-                20, name, 
-                self.small_font, is_active, create_action(name)
+                10, i * growth_item_height + 5, 
+                func_name, 
+                self.font, create_action(func_name),
+                is_checked
             )
             
-            self.growth_checkboxes.append(checkbox)
+            self.growth_func_checkboxes.append(checkbox)
+            
+            # Ajouter la checkbox au panneau des fonctions de croissance
+            self.growth_panel.add_element(checkbox)
+            
+            # Définir explicitement la position originale
+            checkbox._original_pos = (10, i * growth_item_height + 5)
         
-        # Bouton de réinitialisation
-        self.reset_button = Button(
-            10, self.growth_panel.rect.bottom + 20, 
-            self.menu_width - 20, 30, 
-            "Réinitialiser", self.font, self.reset_all
+        # Zone d'information au bas du menu (instructions, états, etc.)
+        self.info_text = Label(
+            self.offset_x + 10, 
+            self.offset_y + 70 + kernel_panel_height + 50 + growth_panel_height + 10, 
+            "Contrôles: Espace=Pause, A=Aquarium, R=Reset", 
+            self.small_font, 
+            color=pygame.Color(100, 100, 100)
         )
     
     def toggle_kernel(self, index, state):
@@ -349,147 +371,77 @@ class MenuManager:
             self.growth_manager.toggle_function(name, name == "gauss")
             
         # Mettre à jour l'état des checkboxes
-        for checkbox in self.growth_checkboxes:
+        for checkbox in self.growth_func_checkboxes:
             checkbox.checked = checkbox.text == "gauss"
         
     def draw(self, surface):
         """
-        Dessine le menu sur la surface.
+        Dessine le menu sur la surface fournie.
         
         Args:
             surface (pygame.Surface): Surface sur laquelle dessiner le menu
         """
-        # Titre principal
+        # Dessiner le fond du menu
+        menu_rect = pygame.Rect(
+            self.offset_x, self.offset_y, 
+            self.menu_width, 600
+        )
+        pygame.draw.rect(surface, WHITE, menu_rect)
+        
+        # Dessiner les titres
         self.title.draw(surface)
-        
-        # Titre de la section des kernels
         self.kernels_title.draw(surface)
+        self.growth_func_title.draw(surface)
+        self.info_text.draw(surface)
         
-        # Panneau des kernels
+        # Dessiner les panneaux défilants
         self.kernels_panel.draw(surface)
-        content_rect = self.kernels_panel.get_content_rect()
-        
-        # Dessiner les checkboxes et boutons d'information des kernels
-        for i, (checkbox, info_button) in enumerate(zip(self.kernel_checkboxes, self.kernel_info_buttons)):
-            y_pos = content_rect.top + i * 50 + 10  # Ajusté pour l'espacement de 50
-            
-            # Vérifier si l'élément est visible dans le panneau défilant
-            if self.kernels_panel.is_visible(y_pos):
-                # Ajuster la position pour le défilement
-                adjusted_y = y_pos - self.kernels_panel.scroll_y
-                
-                # Créer une copie temporaire de la checkbox à la position ajustée
-                temp_checkbox = Checkbox(
-                    checkbox.rect.x, adjusted_y,
-                    checkbox.size, checkbox.text,
-                    checkbox.font, checkbox.checked, checkbox.action
-                )
-                temp_checkbox.draw(surface)
-                
-                # Créer une copie temporaire du bouton d'information à la position ajustée
-                temp_info_button = InfoButton(
-                    info_button.rect.x, adjusted_y,
-                    info_button.rect.width, info_button.font,
-                    info_button.popup_content, info_button.popup_font
-                )
-                temp_info_button.popup_visible = info_button.popup_visible
-                temp_info_button.draw(surface)
-        
-        # Titre de la section des fonctions de croissance
-        self.growth_title.draw(surface)
-        
-        # Panneau des fonctions de croissance
         self.growth_panel.draw(surface)
-        growth_content_rect = self.growth_panel.get_content_rect()
         
-        # Dessiner les checkboxes des fonctions de croissance
-        for i, checkbox in enumerate(self.growth_checkboxes):
-            y_pos = growth_content_rect.top + i * 30 + 10
-            
-            # Vérifier si l'élément est visible dans le panneau défilant
-            if self.growth_panel.is_visible(y_pos):
-                # Ajuster la position pour le défilement
-                adjusted_y = y_pos - self.growth_panel.scroll_y
-                
-                # Créer une copie temporaire de la checkbox à la position ajustée
-                temp_checkbox = Checkbox(
-                    checkbox.rect.x, adjusted_y,
-                    checkbox.size, checkbox.text,
-                    checkbox.font, checkbox.checked, checkbox.action
-                )
-                temp_checkbox.draw(surface)
-        
-        # Bouton de réinitialisation
-        self.reset_button.draw(surface)
-        
-    def update(self, event_list):
+        # Dessiner la bordure du menu
+        pygame.draw.rect(surface, BLACK, menu_rect, 1)
+    
+    def update(self, events):
         """
-        Met à jour l'état du menu en fonction des événements.
+        Met à jour les éléments du menu en fonction des événements.
         
         Args:
-            event_list (list): Liste des événements pygame
+            events (list): Liste des événements pygame à traiter
         """
-        # Mettre à jour le panneau défilant des kernels
-        self.kernels_panel.update(event_list)
-        
-        # Mettre à jour le panneau défilant des fonctions de croissance
-        self.growth_panel.update(event_list)
-        
-        # Mettre à jour les checkboxes et boutons d'information des kernels
-        content_rect = self.kernels_panel.get_content_rect()
-        for i, (checkbox, info_button) in enumerate(zip(self.kernel_checkboxes, self.kernel_info_buttons)):
-            y_pos = content_rect.top + i * 50 + 10  # Ajusté pour l'espacement de 50
-            
-            # Vérifier si l'élément est visible et ajuster sa position
-            if self.kernels_panel.is_visible(y_pos):
-                adjusted_y = y_pos - self.kernels_panel.scroll_y
-                
-                # Déplacer temporairement la checkbox pour l'interaction
-                temp_checkbox = Checkbox(
-                    checkbox.rect.x, adjusted_y,
-                    checkbox.size, checkbox.text,
-                    checkbox.font, checkbox.checked, checkbox.action
+        # Ajuster les events pour le décalage du menu
+        adjusted_events = []
+        for event in events:
+            if hasattr(event, 'pos'):
+                original_pos = event.pos
+                # Ajuster les coordonnées pour rendre l'événement relatif au menu
+                # si l'événement est dans la zone du menu
+                x, y = original_pos
+                menu_rect = pygame.Rect(
+                    self.offset_x, self.offset_y, 
+                    self.menu_width, 600
                 )
                 
-                # Mettre à jour la checkbox temporaire et reporter l'état sur l'originale
-                if temp_checkbox.update(event_list):
-                    checkbox.checked = temp_checkbox.checked
-                
-                # Déplacer temporairement le bouton d'information pour l'interaction
-                temp_info_button = InfoButton(
-                    info_button.rect.x, adjusted_y,
-                    info_button.rect.width, info_button.font,
-                    info_button.popup_content, info_button.popup_font
-                )
-                temp_info_button.popup_visible = info_button.popup_visible
-                
-                # Mettre à jour le bouton d'information temporaire et reporter l'état sur l'original
-                temp_info_button.update(event_list)
-                info_button.popup_visible = temp_info_button.popup_visible
+                if menu_rect.collidepoint(original_pos):
+                    # L'événement est dans la zone du menu, on l'utilise
+                    # Les positions sont relatives à l'élément d'interface
+                    # qui va tester si l'événement le concerne
+                    adjusted_event = pygame.event.Event(event.type, {**event.__dict__, 'pos': (x, y)})
+                    adjusted_events.append(adjusted_event)
+                else:
+                    # L'événement est hors de la zone du menu, on l'ignore
+                    continue
+            else:
+                # L'événement n'a pas de position, on le garde tel quel
+                adjusted_events.append(event)
         
-        # Mettre à jour les checkboxes des fonctions de croissance
-        growth_content_rect = self.growth_panel.get_content_rect()
-        for i, checkbox in enumerate(self.growth_checkboxes):
-            y_pos = growth_content_rect.top + i * 30 + 10
-            
-            # Vérifier si l'élément est visible et ajuster sa position
-            if self.growth_panel.is_visible(y_pos):
-                adjusted_y = y_pos - self.growth_panel.scroll_y
-                
-                # Déplacer temporairement la checkbox pour l'interaction
-                temp_checkbox = Checkbox(
-                    checkbox.rect.x, adjusted_y,
-                    checkbox.size, checkbox.text,
-                    checkbox.font, checkbox.checked, checkbox.action
-                )
-                
-                # Mettre à jour la checkbox temporaire et reporter l'état sur l'originale
-                if temp_checkbox.update(event_list):
-                    checkbox.checked = temp_checkbox.checked
+        # Mettre à jour les panneaux défilants avec les événements ajustés
+        self.kernels_panel.update(adjusted_events)
+        self.growth_panel.update(adjusted_events)
         
-        # Mettre à jour le bouton de réinitialisation
-        self.reset_button.update(event_list)
-        
+        # Mettre à jour les tooltips des boutons d'information
+        for info_button in self.kernel_info_buttons:
+            info_button.update(adjusted_events)
+    
     def get_active_kernel_indices(self):
         """
         Retourne les indices des kernels actifs.

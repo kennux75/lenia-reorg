@@ -62,25 +62,27 @@ class Button:
                 return True
         return False
 
-class InfoButton(Button):
+class InfoButton:
     """Un bouton d'information qui affiche un popup."""
     
-    def __init__(self, x, y, size, font, popup_content, popup_font):
+    def __init__(self, x, y, text, font, popup_content):
         """
         Initialise un bouton d'information.
         
         Args:
             x (int): Position X du bouton
             y (int): Position Y du bouton
-            size (int): Taille du bouton (carré)
+            text (str): Texte à afficher sur le bouton (généralement "i" pour info)
             font (pygame.font.Font): Police à utiliser pour le texte
             popup_content (str): Contenu à afficher dans le popup
-            popup_font (pygame.font.Font): Police à utiliser pour le popup
         """
-        super().__init__(x, y, size, size, "i", font, None)
+        self.rect = pygame.Rect(x, y, 20, 20)  # Taille fixe pour le bouton d'info
+        self.text = text
+        self.font = font
         self.popup_content = popup_content
-        self.popup_font = popup_font
         self.popup_visible = False
+        self.hovered = False
+        self._original_pos = (x, y)  # Pour le défilement
         
     def toggle_popup(self):
         """Affiche ou masque le popup."""
@@ -88,121 +90,195 @@ class InfoButton(Button):
         
     def draw(self, surface):
         """Dessine le bouton et éventuellement le popup."""
-        # Dessiner le bouton
-        super().draw(surface)
+        # Couleurs du bouton en fonction de l'état
+        bg_color = LIGHT_GRAY if self.hovered else GRAY
+        text_color = WHITE
+        border_color = BLUE if self.hovered or self.popup_visible else DARK_GRAY
+        
+        # Dessiner le fond du bouton
+        pygame.draw.rect(surface, bg_color, self.rect, border_radius=10)
+        # Dessiner la bordure
+        pygame.draw.rect(surface, border_color, self.rect, 2, border_radius=10)
+        
+        # Dessiner le texte
+        text_surf = self.font.render(self.text, True, text_color)
+        text_rect = text_surf.get_rect(center=self.rect.center)
+        surface.blit(text_surf, text_rect)
         
         # Dessiner le popup si visible
         if self.popup_visible:
-            # Calculer les dimensions du popup
-            lines = self.popup_content.split('\n')
-            width = max(self.popup_font.size(line)[0] for line in lines) + 2 * POPUP_PADDING
-            height = sum(self.popup_font.size(line)[1] for line in lines) + 2 * POPUP_PADDING
+            self._draw_popup(surface)
             
-            # Assurer qu'il reste dans les limites de l'écran
-            screen_width, screen_height = surface.get_size()
-            x = min(self.rect.right + 5, screen_width - width - 5)
-            y = min(self.rect.top, screen_height - height - 5)
+    def _draw_popup(self, surface):
+        """Dessine le popup d'information."""
+        # Paramètres du popup
+        padding = 10
+        line_height = self.font.get_height() + 2
+        
+        # Découper le contenu en lignes
+        lines = self.popup_content.split('\n')
+        
+        # Calculer les dimensions du popup
+        max_line_width = max(self.font.size(line)[0] for line in lines)
+        popup_width = max_line_width + 2 * padding
+        popup_height = len(lines) * line_height + 2 * padding
+        
+        # Position du popup (à droite du bouton par défaut, ou au-dessus si pas assez d'espace)
+        screen_width, screen_height = surface.get_size()
+        
+        # Vérifier si le popup dépasse à droite
+        if self.rect.right + popup_width > screen_width:
+            popup_x = max(0, self.rect.left - popup_width)
+        else:
+            popup_x = self.rect.right + 5
             
-            # Créer le rectangle du popup
-            popup_rect = pygame.Rect(x, y, width, height)
+        # Vérifier si le popup dépasse en bas
+        if self.rect.centery + popup_height/2 > screen_height:
+            popup_y = max(0, screen_height - popup_height)
+        else:
+            popup_y = max(0, self.rect.centery - popup_height/2)
             
-            # Dessiner le fond
-            pygame.draw.rect(surface, POPUP_BACKGROUND, popup_rect)
-            pygame.draw.rect(surface, POPUP_BORDER, popup_rect, POPUP_BORDER_WIDTH)
-            
-            # Dessiner le texte
-            y_offset = y + POPUP_PADDING
-            for line in lines:
-                text_surf = self.popup_font.render(line, True, BLACK)
-                surface.blit(text_surf, (x + POPUP_PADDING, y_offset))
-                y_offset += self.popup_font.size(line)[1]
-    
+        # Créer le rectangle du popup
+        popup_rect = pygame.Rect(popup_x, popup_y, popup_width, popup_height)
+        
+        # Dessiner le fond du popup
+        pygame.draw.rect(surface, POPUP_BACKGROUND, popup_rect, border_radius=5)
+        # Dessiner la bordure du popup
+        pygame.draw.rect(surface, POPUP_BORDER, popup_rect, POPUP_BORDER_WIDTH, border_radius=5)
+        
+        # Dessiner le texte du popup
+        for i, line in enumerate(lines):
+            text_surf = self.font.render(line, True, BLACK)
+            surface.blit(text_surf, (popup_x + padding, popup_y + padding + i * line_height))
+        
     def update(self, event_list):
-        """Met à jour l'état du bouton et du popup."""
+        """Met à jour l'état du bouton en fonction des événements."""
         mouse_pos = pygame.mouse.get_pos()
+        old_hovered = self.hovered
         self.hovered = self.rect.collidepoint(mouse_pos)
+        
+        # Vérifier s'il y a eu un changement d'état de survol
+        if old_hovered != self.hovered and not self.hovered:
+            # La souris vient de quitter le bouton, fermer le popup
+            self.popup_visible = False
         
         for event in event_list:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if self.hovered:
+                if self.rect.collidepoint(event.pos):
                     self.toggle_popup()
                     return True
-                elif self.popup_visible and not self.rect.collidepoint(mouse_pos):
-                    # Fermer le popup si on clique ailleurs
+                elif self.popup_visible and not self._popup_contains_point(event.pos, surface=pygame.display.get_surface()):
+                    # Clic en dehors du popup, le fermer
                     self.popup_visible = False
+                    return True
         return False
+        
+    def _popup_contains_point(self, point, surface):
+        """Vérifie si un point est dans le popup."""
+        if not self.popup_visible:
+            return False
+            
+        # Recalculer les dimensions du popup (similaire à _draw_popup)
+        padding = 10
+        line_height = self.font.get_height() + 2
+        lines = self.popup_content.split('\n')
+        max_line_width = max(self.font.size(line)[0] for line in lines)
+        popup_width = max_line_width + 2 * padding
+        popup_height = len(lines) * line_height + 2 * padding
+        
+        screen_width, screen_height = surface.get_size()
+        
+        if self.rect.right + popup_width > screen_width:
+            popup_x = max(0, self.rect.left - popup_width)
+        else:
+            popup_x = self.rect.right + 5
+            
+        if self.rect.centery + popup_height/2 > screen_height:
+            popup_y = max(0, screen_height - popup_height)
+        else:
+            popup_y = max(0, self.rect.centery - popup_height/2)
+            
+        popup_rect = pygame.Rect(popup_x, popup_y, popup_width, popup_height)
+        return popup_rect.collidepoint(point)
 
 class Checkbox:
-    """Une case à cocher pour activer/désactiver une option."""
+    """Une case à cocher interactive."""
     
-    def __init__(self, x, y, size, text, font, checked=True, action=None):
+    def __init__(self, x, y, text, font, action=None, checked=False, text_color=BLACK):
         """
         Initialise une case à cocher.
         
         Args:
             x (int): Position X de la case
             y (int): Position Y de la case
-            size (int): Taille de la case
-            text (str): Texte à afficher à côté de la case (peut contenir des sauts de ligne \n)
+            text (str): Texte à afficher à côté de la case
             font (pygame.font.Font): Police à utiliser pour le texte
-            checked (bool, optional): État initial (cochée ou non)
             action (function, optional): Fonction à appeler lorsque l'état change
+            checked (bool, optional): État initial de la case
+            text_color (tuple): Couleur du texte (R,G,B)
         """
-        self.rect = pygame.Rect(x, y, size, size)
+        self.rect = pygame.Rect(x, y, 20, 20)  # Taille de la case à cocher
         self.text = text
         self.font = font
-        self.checked = checked
         self.action = action
+        self.checked = checked
+        self.text_color = text_color
         self.hovered = False
-        self.size = size
+        self._original_pos = (x, y)  # Stocker la position originale pour le défilement
+        
+        # Calculer la largeur totale nécessaire (case + texte)
+        text_width = font.size(text)[0]
+        self.width = 20 + 10 + text_width  # Case + espacement + texte
         
     def draw(self, surface):
-        """Dessine la case à cocher sur la surface."""
-        border_color = BLUE if self.hovered else DARK_GRAY
+        """Dessine la case à cocher et son texte."""
+        # Dessiner le fond de la case
+        bg_color = LIGHT_GRAY if self.hovered else WHITE
+        pygame.draw.rect(surface, bg_color, self.rect)
         
-        # Dessiner la case
-        pygame.draw.rect(surface, WHITE, self.rect)
+        # Dessiner la bordure de la case
+        border_color = BLUE if self.hovered else BLACK
         pygame.draw.rect(surface, border_color, self.rect, 2)
         
-        # Dessiner la coche si cochée
+        # Dessiner la coche si la case est cochée
         if self.checked:
             inner_rect = pygame.Rect(
-                self.rect.x + self.size * 0.2,
-                self.rect.y + self.size * 0.2,
-                self.size * 0.6,
-                self.size * 0.6
+                self.rect.x + 4, 
+                self.rect.y + 4, 
+                self.rect.width - 8, 
+                self.rect.height - 8
             )
-            pygame.draw.rect(surface, GREEN, inner_rect)
+            pygame.draw.rect(surface, BLUE, inner_rect)
         
-        # Dessiner le texte (support multi-lignes)
-        lines = self.text.split('\n')
-        line_height = self.font.get_height()
+        # Dessiner le texte à droite de la case avec un fond coloré pour le rendre plus visible
+        text_surf = self.font.render(self.text, True, BLACK)  # Toujours utiliser du noir pour le texte
+        text_width = text_surf.get_width()
+        text_height = text_surf.get_height()
         
-        # Calculer la hauteur totale du texte
-        total_height = line_height * len(lines)
+        # Position du texte
+        text_x = self.rect.right + 10
+        text_y = self.rect.centery - text_height // 2
         
-        # Position Y de départ pour centrer verticalement le bloc de texte par rapport à la case
-        start_y = self.rect.centery - (total_height / 2)
+        # Dessiner un fond légèrement coloré derrière le texte
+        text_bg_rect = pygame.Rect(text_x - 2, text_y - 2, text_width + 4, text_height + 4)
+        pygame.draw.rect(surface, (240, 240, 255), text_bg_rect)  # Fond très légèrement bleuté
+        pygame.draw.rect(surface, (200, 200, 220), text_bg_rect, 1)  # Bordure plus foncée
         
-        # Dessiner chaque ligne
-        for i, line in enumerate(lines):
-            text_surf = self.font.render(line, True, BLACK)
-            text_rect = text_surf.get_rect(
-                midleft=(self.rect.right + 10, start_y + i * line_height + line_height / 2)
-            )
-            surface.blit(text_surf, text_rect)
+        # Dessiner le texte
+        surface.blit(text_surf, (text_x, text_y))
         
     def update(self, event_list):
-        """Met à jour l'état de la case à cocher en fonction des événements."""
+        """Met à jour l'état de la case en fonction des événements."""
         mouse_pos = pygame.mouse.get_pos()
         self.hovered = self.rect.collidepoint(mouse_pos)
         
         for event in event_list:
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.hovered:
-                self.checked = not self.checked
-                if self.action:
-                    self.action(self.checked)
-                return True
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if self.rect.collidepoint(event.pos):
+                    self.checked = not self.checked
+                    if self.action:
+                        self.action(self.checked)
+                    return True
         return False
 
 class Label:
@@ -251,10 +327,10 @@ class Panel:
         pygame.draw.rect(surface, self.color, self.rect)
         pygame.draw.rect(surface, DARK_GRAY, self.rect, 2)
         
-class ScrollablePanel(Panel):
-    """Un panneau avec défilement pour afficher beaucoup d'éléments."""
+class ScrollablePanel:
+    """Panneau défilant pour afficher du contenu plus grand que l'espace disponible."""
     
-    def __init__(self, x, y, width, height, content_height, color=LIGHT_GRAY):
+    def __init__(self, x, y, width, height, content_height):
         """
         Initialise un panneau défilant.
         
@@ -262,82 +338,166 @@ class ScrollablePanel(Panel):
             x (int): Position X du panneau
             y (int): Position Y du panneau
             width (int): Largeur du panneau
-            height (int): Hauteur visible du panneau
-            content_height (int): Hauteur totale du contenu
-            color (tuple, optional): Couleur de fond du panneau
+            height (int): Hauteur du panneau
+            content_height (int): Hauteur totale du contenu à afficher
         """
-        super().__init__(x, y, width, height, color)
-        self.content_height = content_height
+        self.rect = pygame.Rect(x, y, width, height)
+        self.width = width
+        self.height = height
+        self.content_height = max(content_height, height)
         self.scroll_y = 0
-        self.max_scroll = max(0, content_height - height)
-        self.scrollbar_width = 15 if self.max_scroll > 0 else 0
-        self.dragging_scrollbar = False
+        self.max_scroll = max(0, self.content_height - self.height)
+        self.elements = []
+        self.dragging = False
+        self.drag_start = 0
+        self.scroll_speed = 15  # Vitesse de défilement augmentée
+        self.scroll_bar_width = 10
+        self.debug = False  # Mode debug pour voir les positions
         
-    def update(self, event_list):
-        """Met à jour l'état du panneau défilant."""
-        mouse_pos = pygame.mouse.get_pos()
+    def add_element(self, element):
+        """Ajoute un élément au panneau."""
+        # Stocker la position originale de l'élément lors de l'ajout
+        if hasattr(element, 'rect'):
+            # Utiliser _original_pos s'il existe déjà
+            if not hasattr(element, '_original_pos'):
+                element._original_pos = (element.rect.x, element.rect.y)
+        self.elements.append(element)
         
-        for event in event_list:
-            # Défilement avec la molette
-            if event.type == pygame.MOUSEWHEEL and self.rect.collidepoint(mouse_pos):
-                self.scroll_y = max(0, min(self.max_scroll, self.scroll_y - event.y * 20))
-                
-            # Drag and drop de la scrollbar
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                scrollbar_rect = self._get_scrollbar_rect()
-                if scrollbar_rect.collidepoint(mouse_pos):
-                    self.dragging_scrollbar = True
-                    
-            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                self.dragging_scrollbar = False
-                
-            if event.type == pygame.MOUSEMOTION and self.dragging_scrollbar:
-                # Calcul de la nouvelle position de défilement
-                if self.max_scroll > 0:
-                    ratio = (mouse_pos[1] - self.rect.top) / self.rect.height
-                    self.scroll_y = max(0, min(self.max_scroll, int(ratio * self.content_height)))
-                    
-        return False
-        
-    def _get_scrollbar_rect(self):
-        """Retourne le rectangle de la scrollbar."""
-        if self.max_scroll <= 0:
-            return pygame.Rect(0, 0, 0, 0)
-        
-        bar_height = max(30, int(self.rect.height * (self.rect.height / self.content_height)))
-        bar_y = self.rect.top + int((self.rect.height - bar_height) * (self.scroll_y / self.max_scroll))
-        
-        return pygame.Rect(
-            self.rect.right - self.scrollbar_width, 
-            bar_y, 
-            self.scrollbar_width, 
-            bar_height
-        )
-        
-    def draw(self, surface):
-        """Dessine le panneau et sa scrollbar."""
-        # Dessiner le fond
-        super().draw(surface)
-        
-        # Dessiner la scrollbar si nécessaire
-        if self.max_scroll > 0:
-            scrollbar_rect = self._get_scrollbar_rect()
-            pygame.draw.rect(surface, GRAY, scrollbar_rect)
-            pygame.draw.rect(surface, DARK_GRAY, scrollbar_rect, 1)
-            
-    def get_content_rect(self):
-        """Retourne le rectangle pour dessiner le contenu."""
-        return pygame.Rect(
-            self.rect.left,
-            self.rect.top - self.scroll_y,
-            self.rect.width - self.scrollbar_width,
-            self.content_height
-        )
-            
     def is_visible(self, y_pos):
         """Vérifie si une position Y est visible dans le panneau."""
-        return (self.rect.top <= y_pos - self.scroll_y <= self.rect.bottom)
+        return self.rect.top <= y_pos <= self.rect.bottom
         
+    def get_content_rect(self):
+        """Retourne le rectangle du contenu (incluant le défilement)."""
+        return pygame.Rect(self.rect.x, self.rect.y - self.scroll_y, self.rect.width, self.content_height)
+        
+    def update(self, event_list):
+        """Met à jour l'état du panneau en fonction des événements."""
+        for event in event_list:
+            # Gestion du défilement avec la molette de la souris
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if self.rect.collidepoint(event.pos):
+                    if event.button == 4:  # Roulette vers le haut
+                        self.scroll_y = max(0, self.scroll_y - self.scroll_speed)
+                    elif event.button == 5:  # Roulette vers le bas
+                        self.scroll_y = min(self.max_scroll, self.scroll_y + self.scroll_speed)
+                    elif event.button == 1:  # Clic gauche sur la barre de défilement
+                        # Vérifier si le clic est sur la barre de défilement
+                        scrollbar_rect = self._get_scrollbar_rect()
+                        if scrollbar_rect.collidepoint(event.pos):
+                            self.dragging = True
+                            self.drag_start = event.pos[1]
+                
+            # Gestion du glissement de la barre de défilement
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    self.dragging = False
+            
+            elif event.type == pygame.MOUSEMOTION:
+                if self.dragging:
+                    # Calcul du déplacement relatif
+                    delta_y = event.pos[1] - self.drag_start
+                    # Conversion du déplacement en pixels en déplacement de défilement
+                    scrollbar_height = self._get_scrollbar_height()
+                    content_ratio = self.content_height / self.height
+                    self.scroll_y += delta_y * content_ratio
+                    # Limiter le défilement
+                    self.scroll_y = max(0, min(self.max_scroll, self.scroll_y))
+                    # Mettre à jour le point de référence
+                    self.drag_start = event.pos[1]
+        
+        # Mettre à jour tous les éléments du panneau
+        for element in self.elements:
+            # Ajuster la position en fonction du défilement
+            if hasattr(element, 'rect') and hasattr(element, '_original_pos'):
+                # Calculer la nouvelle position y en tenant compte du défilement
+                new_y = self.rect.top + element._original_pos[1] - self.scroll_y
+                
+                # Mettre à jour la position de l'élément
+                element.rect.x = self.rect.left + element._original_pos[0]
+                element.rect.y = new_y
+            
+            # Mettre à jour l'élément s'il est visible
+            if hasattr(element, 'update'):
+                if hasattr(element, 'rect') and self._is_element_visible(element):
+                    element.update(event_list)
+                
+    def draw(self, surface):
+        """Dessine le panneau et son contenu sur la surface."""
+        # Dessiner le fond du panneau avec une couleur légèrement différente pour le rendre visible
+        pygame.draw.rect(surface, (245, 245, 250), self.rect)  # Couleur légèrement bleutée
+        
+        # Définir un rectangle de clipping pour ne dessiner que ce qui est visible
+        old_clip = surface.get_clip()
+        surface.set_clip(self.rect)
+        
+        # Dessiner tous les éléments visibles
+        visible_count = 0
+        for element in self.elements:
+            if hasattr(element, 'rect') and self._is_element_visible(element):
+                element.draw(surface)
+                visible_count += 1
+                
+                # Dessiner un rectangle de débogage autour de l'élément si le mode debug est actif
+                if self.debug:
+                    pygame.draw.rect(surface, (255, 0, 0), element.rect, 1)
+        
+        # Dessiner la barre de défilement si nécessaire
+        if self.content_height > self.height:
+            scrollbar_rect = self._get_scrollbar_rect()
+            # Dessiner la piste de la barre de défilement (fond)
+            track_rect = pygame.Rect(scrollbar_rect.x, self.rect.top, 
+                                    self.scroll_bar_width, self.height)
+            pygame.draw.rect(surface, (220, 220, 220), track_rect)
+            
+            # Dessiner la poignée de la barre de défilement
+            pygame.draw.rect(surface, (120, 120, 150), scrollbar_rect)
+            pygame.draw.rect(surface, (80, 80, 100), scrollbar_rect, 1)  # Bordure
+            
+        # Dessiner une bordure plus marquée autour du panneau
+        pygame.draw.rect(surface, (100, 100, 140), self.rect, 2)
+        
+        # Afficher des informations de débogage si le mode debug est actif
+        if self.debug:
+            debug_font = pygame.font.SysFont('Arial', 10)
+            debug_text = debug_font.render(
+                f"Visible: {visible_count}/{len(self.elements)}, Scroll: {self.scroll_y}/{self.max_scroll}", 
+                True, (50, 50, 50)
+            )
+            surface.blit(debug_text, (self.rect.x + 5, self.rect.y + 5))
+        
+        # Restaurer le rectangle de clipping
+        surface.set_clip(old_clip)
+    
+    def _is_element_visible(self, element):
+        """Vérifie si un élément est visible dans le panneau."""
+        if not hasattr(element, 'rect'):
+            return False
+        # Un élément est visible si une partie de son rectangle est dans le panneau
+        return (element.rect.bottom > self.rect.top and 
+                element.rect.top < self.rect.bottom)
+    
+    def _get_scrollbar_rect(self):
+        """Calcule le rectangle de la barre de défilement."""
+        scrollbar_height = self._get_scrollbar_height()
+        scrollbar_pos = self.rect.right - self.scroll_bar_width
+        scrollbar_y = self.rect.top
+        if self.max_scroll > 0:
+            scroll_ratio = self.scroll_y / self.max_scroll
+            scrollbar_y += scroll_ratio * (self.height - scrollbar_height)
+        return pygame.Rect(scrollbar_pos, scrollbar_y, self.scroll_bar_width, scrollbar_height)
+    
+    def _get_scrollbar_height(self):
+        """Calcule la hauteur de la barre de défilement en fonction du contenu."""
+        if self.content_height <= self.height:
+            return self.height  # Pas de défilement nécessaire
+        return max(30, int(self.height * (self.height / self.content_height)))  # Min 30px pour la facilité de clic
+    
+    def toggle_debug(self):
+        """Active ou désactive le mode de débogage visuel."""
+        self.debug = not self.debug
+        return self.debug
+
 class DropdownMenu:
     """Un menu déroulant pour choisir parmi plusieurs options."""
     
