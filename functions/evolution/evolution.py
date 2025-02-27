@@ -2,51 +2,71 @@
 # -*- coding: utf-8 -*-
 
 """
-Fonctions d'évolution
---------------------
-Ce module contient les fonctions qui définissent l'évolution du système Lenia.
+Fonctions d'évolution de Lenia
+------------------------------
+Ce module contient les fonctions pour faire évoluer le système Lenia.
 """
 
 import numpy as np
-from config.simulation_config import dt, ms, ss, hs, sources, destinations, interaction_matrix
+from functions.kernel.kernel_generation import generate_kernels
 from functions.growth.growth_functions import gauss
-from functions.evolution.kernel_generator import generate_kernels
+from config.simulation_config import dt, ms, ss, hs, sources, destinations, interaction_matrix
 
-# Génération des kernels et de leurs transformées de Fourier
-_, fKs = generate_kernels()
-
-def evolve_multi_channels(Xs, active_indices=None, growth_func=None):
+def evolve_single_channel(X, R, dt, kernel_core, growth_func=gauss):
     """
-    Fait évoluer le système Lenia avec plusieurs canaux sans interactions entre canaux.
+    Fait évoluer une grille Lenia avec un seul canal.
+    
+    Args:
+        X (numpy.ndarray): Grille à faire évoluer
+        R (float): Rayon du kernel
+        dt (float): Pas de temps
+        kernel_core (numpy.ndarray): Noyau du kernel
+        growth_func (function, optional): Fonction de croissance à utiliser. Par défaut gauss.
+    
+    Returns:
+        numpy.ndarray: Grille évoluée
+    """
+    # Calculer la convolution
+    FFT = np.fft.fft2
+    IFFT = np.fft.ifft2
+    K = np.real(IFFT(FFT(kernel_core) * FFT(X)))
+    
+    # Calculer la mise à jour
+    G = dt * growth_func(K, kernel_mu, kernel_sigma)
+    X = np.clip(X + G, 0, 1)
+    
+    return X
+
+def evolve_multi_channels(Xs, active_indices, growth_func=gauss):
+    """
+    Fait évoluer un système Lenia avec plusieurs canaux.
     
     Args:
         Xs (list): Liste des grilles pour chaque canal
-        active_indices (list, optional): Indices des kernels actifs. Par défaut tous les kernels sont actifs.
+        active_indices (list): Liste des indices des kernels actifs
         growth_func (function, optional): Fonction de croissance à utiliser. Par défaut gauss.
-        
+    
     Returns:
-        list: Liste des grilles mises à jour
+        list: Liste des grilles évoluées
     """
-    # Si aucun indice actif n'est spécifié, on utilise tous les kernels
-    if active_indices is None:
-        active_indices = list(range(len(fKs)))
-        
-    # Si aucune fonction de croissance n'est spécifiée, on utilise gauss
-    if growth_func is None:
-        growth_func = gauss
-        
-    # Calcul des transformées de Fourier de chaque canal
+    # Générer les kernels
+    kernels_fft = generate_kernels(
+        Xs[0].shape, 
+        active_indices
+    )
+    
+    # Calculer les FFT des canaux
     fXs = [np.fft.fft2(X) for X in Xs]
     
-    # Initialisation du terme de croissance pour chaque canal
+    # Initialiser les termes de croissance pour chaque canal
     Gs = [np.zeros_like(X) for X in Xs]
     
-    # Pour chaque kernel actif, calcul de la convolution avec le canal source correspondant
-    for i in active_indices:
-        # Récupération des paramètres du kernel
-        fK = fKs[i]
+    # Appliquer les kernels actifs
+    for idx, i in enumerate(active_indices):
+        fK = kernels_fft[idx]
         source = sources[i]
         destination = destinations[i]
+        
         m = ms[i]
         s = ss[i]
         h = hs[i]
@@ -65,38 +85,41 @@ def evolve_multi_channels(Xs, active_indices=None, growth_func=None):
     
     return Xs
 
-def evolve_multi_channels_interactions(Xs, active_indices=None, growth_func=None):
+def evolve_multi_channels_interactions(Xs, active_indices, growth_func=gauss, interaction_mat=None):
     """
-    Fait évoluer le système Lenia avec plusieurs canaux et interactions entre canaux.
+    Fait évoluer un système Lenia avec plusieurs canaux et des interactions entre canaux.
     
     Args:
         Xs (list): Liste des grilles pour chaque canal
-        active_indices (list, optional): Indices des kernels actifs. Par défaut tous les kernels sont actifs.
+        active_indices (list): Liste des indices des kernels actifs
         growth_func (function, optional): Fonction de croissance à utiliser. Par défaut gauss.
-        
+        interaction_mat (numpy.ndarray, optional): Matrice d'interaction entre canaux. Par défaut None, utilise interaction_matrix.
+    
     Returns:
-        list: Liste des grilles mises à jour
+        list: Liste des grilles évoluées
     """
-    # Si aucun indice actif n'est spécifié, on utilise tous les kernels
-    if active_indices is None:
-        active_indices = list(range(len(fKs)))
+    # Si aucune matrice d'interaction n'est fournie, utiliser celle par défaut
+    if interaction_mat is None:
+        interaction_mat = interaction_matrix
         
-    # Si aucune fonction de croissance n'est spécifiée, on utilise gauss
-    if growth_func is None:
-        growth_func = gauss
-        
-    # Calcul des transformées de Fourier de chaque canal
+    # Générer les kernels
+    kernels_fft = generate_kernels(
+        Xs[0].shape, 
+        active_indices
+    )
+    
+    # Calculer les FFT des canaux
     fXs = [np.fft.fft2(X) for X in Xs]
     
-    # Initialisation du terme de croissance pour chaque canal
+    # Initialiser les termes de croissance pour chaque canal
     Gs = [np.zeros_like(X) for X in Xs]
     
-    # Pour chaque kernel actif, calcul de la convolution avec le canal source correspondant
-    for i in active_indices:
-        # Récupération des paramètres du kernel
-        fK = fKs[i]
+    # Appliquer les kernels actifs
+    for idx, i in enumerate(active_indices):
+        fK = kernels_fft[idx]
         source = sources[i]
         destination = destinations[i]
+        
         m = ms[i]
         s = ss[i]
         h = hs[i]
@@ -116,7 +139,7 @@ def evolve_multi_channels_interactions(Xs, active_indices=None, growth_func=None
         for j in range(len(Xs)):
             if i != j:
                 # L'influence de Xs[j] sur le canal i est pondérée par le coefficient de la matrice
-                interaction_term += interaction_matrix[i, j] * Xs[j]
+                interaction_term += interaction_mat[i, j] * Xs[j]
         # Ajout de ce terme d'interaction à la variation de Xs[i]
         Gs[i] += interaction_term
     
