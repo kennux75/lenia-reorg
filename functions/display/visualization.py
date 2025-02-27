@@ -33,13 +33,13 @@ def produce_movie_multi(Xs, evolve, interpolation=DEFAULT_INTERPOLATION):
     pygame.init()
     
     # Création de la fenêtre
-    screen = pygame.display.set_mode((width, height))
+    screen = pygame.display.set_mode((width + MENU_WIDTH, height))
     
     # Initialisation du gestionnaire de menu
     menu_manager = MenuManager(kernels, ms, ss, hs, sources, destinations)
     
     # Taille de la surface pour la simulation (sans le menu)
-    sim_width = width - MENU_WIDTH
+    sim_width = width
     sim_height = height
     
     # Création de la figure matplotlib pour les statistiques si nécessaire
@@ -48,6 +48,13 @@ def produce_movie_multi(Xs, evolve, interpolation=DEFAULT_INTERPOLATION):
     
     canvas = FigureCanvas(fig)
     im = ax.imshow(np.dstack(Xs), interpolation=interpolation)
+    
+    # Variables pour l'affichage des informations
+    font = pygame.font.SysFont('Arial', 18)
+    info_font = pygame.font.SysFont('Arial', 14)
+    active_growth_funcs = ["gauss"]  # Par défaut
+    info_surface = None
+    info_time = 0
 
     while running:
         # Liste pour collecter les événements de cette frame
@@ -72,9 +79,26 @@ def produce_movie_multi(Xs, evolve, interpolation=DEFAULT_INTERPOLATION):
         # Récupération des indices de kernels actifs
         active_indices = menu_manager.get_active_kernel_indices()
         
+        # Récupération de la fonction de croissance active
+        growth_func = menu_manager.get_active_growth_function()
+        
+        # Récupération des noms des fonctions de croissance actives pour l'affichage
+        new_active_growth_funcs = menu_manager.get_active_growth_function_names()
+        
+        # Si les fonctions actives ont changé, mettre à jour l'affichage des infos
+        if new_active_growth_funcs != active_growth_funcs:
+            active_growth_funcs = new_active_growth_funcs
+            
+            # Créer une surface pour afficher les infos
+            info_text = "Fonctions actives: " + ", ".join(active_growth_funcs)
+            info_surface = info_font.render(info_text, True, BLACK, WHITE)
+            
+            # Durée d'affichage (en millisecondes)
+            info_time = pygame.time.get_ticks() + 3000
+        
         if not paused:
-            # Évolution du système avec les kernels actifs
-            Xs = evolve(Xs, active_indices)
+            # Évolution du système avec les kernels actifs et la fonction de croissance
+            Xs = evolve(Xs, active_indices, growth_func)
             
             # Conversion de la simulation en image
             data = np.dstack(Xs)
@@ -92,6 +116,10 @@ def produce_movie_multi(Xs, evolve, interpolation=DEFAULT_INTERPOLATION):
             
             # Dessiner le menu
             menu_manager.draw(screen)
+            
+            # Afficher les infos sur les fonctions actives si nécessaire
+            if info_surface and pygame.time.get_ticks() < info_time:
+                screen.blit(info_surface, (MENU_WIDTH + 10, 10))
             
             # Mise à jour de l'affichage
             pygame.display.flip()

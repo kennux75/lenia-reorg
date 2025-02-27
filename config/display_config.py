@@ -11,15 +11,17 @@ import pygame
 
 # Paramètres d'affichage
 DPI = 100  # DPI de la fenêtre (dots per inch)
-MENU_WIDTH = 300  # Largeur du menu latéral en pixels
-width, height = 1280 + MENU_WIDTH, 720  # Résolution en pixels de la fenêtre avec menu
+MENU_WIDTH = 350  # Largeur du menu latéral en pixels
+MAX_WINDOW_WIDTH = 1920  # Largeur maximale de la fenêtre
+width, height = min(1600, MAX_WINDOW_WIDTH), 900  # Résolution en pixels de la fenêtre avec menu
+width = min(width, MAX_WINDOW_WIDTH - MENU_WIDTH)  # Ajuster la largeur dans les limites
 
 # Calculer la taille de la figure en pouces pour matplotlib
 figsize = (width / DPI, height / DPI)
 
 # Initialisation de pygame
 pygame.init()
-screen = pygame.display.set_mode((width, height))
+screen = pygame.display.set_mode((width + MENU_WIDTH, height))
 pygame.display.set_caption("Lenia Simulation")
 
 # Couleurs pour l'interface
@@ -30,6 +32,15 @@ LIGHT_GRAY = (230, 230, 230)
 DARK_GRAY = (100, 100, 100)
 BLUE = (0, 120, 215)
 GREEN = (0, 180, 0)
+RED = (200, 50, 50)
+YELLOW = (230, 200, 40)
+PURPLE = (150, 50, 150)
+
+# Paramètres pour les popups
+POPUP_PADDING = 10
+POPUP_BORDER_WIDTH = 2
+POPUP_BACKGROUND = (250, 250, 250)
+POPUP_BORDER = DARK_GRAY
 
 # Paramètres d'interpolation pour l'affichage
 DEFAULT_INTERPOLATION = 'bicubic'  # Méthode d'interpolation pour l'affichage
